@@ -41,6 +41,8 @@ int animation_id = 0;	// first animation clip
 // My mesh and skeleton
 TriangleMesh mesh;
 MeshAnimation animation;
+string sceneFile;
+string skeletonFile;
 
 extern void initScene();
 extern void updateScene();
@@ -103,11 +105,24 @@ void initScene()
 
 void loadScene()
 {
-	// read in mesh obj
-  mesh.readFromOBJ("meshes/simplebear.obj");		// TODO!
+// TODO: remove to automate this
+//    ifstream myfile(sceneFile.c_str());
+//    if (!myfile.is_open()) {
+//        cerr << "Unable open scene: " << sceneFile << endl;
+//        return;
+//    }
+//    mesh.readFromOBJ(sceneFile.c_str());
+    mesh.readFromOBJ("meshes/simplebear.obj");
 	
 	// read in mesh skeleton
 	animation.LoadSkeletonXML("skeletons/org_mapped.skeleton.xml");
+    
+    //    ifstream myanimationfile(skeletonFile.c_str());
+    //    if (!myanimationfile.is_open()) {
+    //        cerr << "Unable open skeleton: " << skeletonFile << endl;
+    //        return;
+    //    }
+    // animation.LoadSkeletonXML(skeletonFile.c_str());
 	
 }
 
@@ -322,8 +337,10 @@ void idleCallback()
 
 int main(int argc, char **argv)
 {
-  //if (argc==2)
-    //sceneFile = argv[1];
+    if (argc==3) {
+        sceneFile = argv[1];
+        skeletonFile = argv[2];
+    }
    glutInit(&argc, argv);
    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
    glutInitWindowSize(windowWidth, windowHeight);
