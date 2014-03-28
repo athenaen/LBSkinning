@@ -48,7 +48,8 @@ extern void initScene();
 extern void updateScene();
 extern void loadScene();
 extern void computeVertexBoneWeight();
-extern Vector3 closestDistance(Vector3 boneStart, Vector3 boneEnd, Vector3 vertex);
+extern float closestDistance(Vector3 boneStart, Vector3 boneEnd, Vector3 vertex);
+extern float computeDistance(Vector3 p1, Vector3 p2);
 extern void computeDeformedMesh();
 
 
@@ -134,63 +135,76 @@ void loadScene()
 
 void computeVertexBoneWeight()
 {
-//    for (int i = 0; i < animation.bones.size(); i++) {
-//        MeshAnimation::TBone b = animation.bones.at(i);
-//        float bonex = b.pos[0];
-//        float boney = b.pos[1];
-//        float bonez = b.pos[2];
-//        matrix44 mat = b.matrix;
-//        //mat[0][0];
-//        Vector3 boneVector = Vector3(bonex, boney, bonez);
-//        //mat *
+    //for (int i = 0; i < animation.bones.size(); i++) {
+    //MeshAnimation::TBone b = animation.bones.at(i);
+    int index = animation.GetBoneIndexOf("Bone.001_L.002");
+    MeshAnimation::TBone b = animation.bones.at(index);
+    
+    
+        float boney = b.pos[0];
+        float bonex = b.pos[1];
+        float bonez = b.pos[2];
+        cout << b.name << endl;
+        
+        cout << bonex << endl;
+        cout << boney << endl;
+        cout << bonex << endl;
+        cout << endl;
+        matrix44 mat = b.matrix;
+
+        Vector3 boneVector = Vector3(bonex, boney, bonez);
+        
+        
 //    }
     
     // Here for testing purposes
-    Vector3 bone1 = Vector3(1, 1, 0);
-    Vector3 bone2 = Vector3(2, 1, 0);
-    Vector3 vertex1 = Vector3(1.5, 1, 0);
-    
-    Vector3 vertex2 = Vector3(1, 2, 0);
-    Vector3 vertex3 = Vector3(2, 2, 0);
-    
-    Vector3 vertex4 = Vector3(1, -1, 0);
-    Vector3 vertex5 = Vector3(1, 1, 5);
-    
-    
-    closestDistance(bone1, bone2, vertex1);
-    closestDistance(bone1, bone2, vertex2);
-    closestDistance(bone1, bone2, vertex3);
-    closestDistance(bone1, bone2, vertex4);
-    closestDistance(bone1, bone2, vertex5);
+//    Vector3 bone1 = Vector3(1, 1, 0);
+//    Vector3 bone2 = Vector3(2, 1, 0);
+//    Vector3 vertex1 = Vector3(1.5, 1, 0);
+//    
+//    Vector3 vertex2 = Vector3(1, 2, 0);
+//    Vector3 vertex3 = Vector3(2, 2, 0);
+//    
+//    Vector3 vertex4 = Vector3(1, -1, 0);
+//    Vector3 vertex5 = Vector3(1, 1, 5);
+//    
+//    
+//    cout << closestDistance(bone1, bone2, vertex1) << endl;
+//    cout << closestDistance(bone1, bone2, vertex2) << endl;
+//    cout << closestDistance(bone1, bone2, vertex3) << endl;
+//    cout << closestDistance(bone1, bone2, vertex4) << endl;
+//    cout << closestDistance(bone1, bone2, vertex5) << endl;
 }
 
 ///////////////////////////////////////////////////////////////////
 // FUNC: closestPoint()
-// DOES: Given a bone and a vertex, returns either boneStart, boneEnd of a point in between
+// DOES: Given a bone and a vertex, returns shortest distance from point to the bone segment
 ///////////////////////////////////////////////////////////////////
-Vector3 closestDistance(Vector3 boneStart, Vector3 boneEnd, Vector3 vertex) {
+float closestDistance(Vector3 boneStart, Vector3 boneEnd, Vector3 vertex) {
     // Use this formula
-    Vector3 numerator = (vertex - boneStart).cross((vertex - boneEnd));
-    float numX = sqrt(pow(numerator[0], 2));
-    float numY = sqrt(pow(numerator[1], 2));
-    float numZ = sqrt(pow(numerator[2], 2));
+    Vector3 v = boneEnd - boneStart;
+    Vector3 w = vertex - boneStart;
     
-    //numerator = Vector3(numX, numY, numZ);
+    double c1 = w.dot(v);
+    if (c1 <= 0) {
+        return computeDistance(vertex, boneStart);
+    }
+    double c2 = v.dot(v);
+    if (c2 <= c1) {
+        return computeDistance(vertex, boneEnd);
+    }
     
-    Vector3 denominator = boneEnd - boneStart;
-    
-    float denomX = sqrt(pow(denominator[0], 2));
-    float denomY = sqrt(pow(denominator[1], 2));
-    float denomZ = sqrt(pow(denominator[2], 2));
-    
-    //denominator = Vector3(denomX, denomY, denomZ);
-    //denomX == 0 ? numX = 0;
-        
-    
-    Vector3 distance = Vector3((numX / denomX), (numY / denomY), (numZ / denomZ));
-    
-    distance.print("Distance is");
-    return distance;
+    double c = c1 / c2;
+    Vector3 closestPoint = boneStart + (c * v);
+    return computeDistance(vertex, closestPoint);
+}
+
+// Distance function between two points
+float computeDistance(Vector3 p1, Vector3 p2) {
+    float x = pow(p2[0] - p1[0], 2);
+    float y = pow(p2[1] - p1[1], 2);
+    float z = pow(p2[2] - p1[2], 2);
+    return sqrt(x + y + z);
 }
 
 ///////////////////////////////////////////////////////////////////
