@@ -48,6 +48,7 @@ extern void initScene();
 extern void updateScene();
 extern void loadScene();
 extern void computeVertexBoneWeight();
+extern Vector3 closestDistance(Vector3 boneStart, Vector3 boneEnd, Vector3 vertex);
 extern void computeDeformedMesh();
 
 
@@ -133,6 +134,63 @@ void loadScene()
 
 void computeVertexBoneWeight()
 {
+//    for (int i = 0; i < animation.bones.size(); i++) {
+//        MeshAnimation::TBone b = animation.bones.at(i);
+//        float bonex = b.pos[0];
+//        float boney = b.pos[1];
+//        float bonez = b.pos[2];
+//        matrix44 mat = b.matrix;
+//        //mat[0][0];
+//        Vector3 boneVector = Vector3(bonex, boney, bonez);
+//        //mat *
+//    }
+    
+    // Here for testing purposes
+    Vector3 bone1 = Vector3(1, 1, 0);
+    Vector3 bone2 = Vector3(2, 1, 0);
+    Vector3 vertex1 = Vector3(1.5, 1, 0);
+    
+    Vector3 vertex2 = Vector3(1, 2, 0);
+    Vector3 vertex3 = Vector3(2, 2, 0);
+    
+    Vector3 vertex4 = Vector3(1, -1, 0);
+    Vector3 vertex5 = Vector3(1, 1, 5);
+    
+    
+    closestDistance(bone1, bone2, vertex1);
+    closestDistance(bone1, bone2, vertex2);
+    closestDistance(bone1, bone2, vertex3);
+    closestDistance(bone1, bone2, vertex4);
+    closestDistance(bone1, bone2, vertex5);
+}
+
+///////////////////////////////////////////////////////////////////
+// FUNC: closestPoint()
+// DOES: Given a bone and a vertex, returns either boneStart, boneEnd of a point in between
+///////////////////////////////////////////////////////////////////
+Vector3 closestDistance(Vector3 boneStart, Vector3 boneEnd, Vector3 vertex) {
+    // Use this formula
+    Vector3 numerator = (vertex - boneStart).cross((vertex - boneEnd));
+    float numX = sqrt(pow(numerator[0], 2));
+    float numY = sqrt(pow(numerator[1], 2));
+    float numZ = sqrt(pow(numerator[2], 2));
+    
+    //numerator = Vector3(numX, numY, numZ);
+    
+    Vector3 denominator = boneEnd - boneStart;
+    
+    float denomX = sqrt(pow(denominator[0], 2));
+    float denomY = sqrt(pow(denominator[1], 2));
+    float denomZ = sqrt(pow(denominator[2], 2));
+    
+    //denominator = Vector3(denomX, denomY, denomZ);
+    //denomX == 0 ? numX = 0;
+        
+    
+    Vector3 distance = Vector3((numX / denomX), (numY / denomY), (numZ / denomZ));
+    
+    distance.print("Distance is");
+    return distance;
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -145,7 +203,7 @@ void computeDeformedMesh()
 { 
   // mesh size
 	int meshSize = mesh.vertices.size();
-		
+    
 	// compute and update coords of mesh vertices based on bone positions
 	
 }
