@@ -47,11 +47,8 @@ MeshAnimation animation;
 string sceneFile;
 string skeletonFile;
 
-bool linearBlend;
-int closestMeshIndex = -1;
 // weights contain the weights of all the bones per mesh vertex
 std::vector<std::vector<float>> weights;
-int MAX_DISTANCE = 20;
 
 extern void initScene();
 extern void updateScene();
@@ -99,9 +96,8 @@ void initScene()
   currentTime = 0;     // reset time
 
   loadScene();         // read scene description
-	
-  //computeVertexBoneWeight(); // compute weight of bones on each vertex
-    
+
+    // Copy the original mesh
     std::vector<Vector3> vertice;
     for (int i = 0; i < mesh.vertices.size(); i++) {
         vertice.push_back(mesh.vertices[i]);
@@ -112,18 +108,14 @@ void initScene()
   case 0:
     break;
   case 1:
-    linearBlend = false;
-    computeVertexBoneWeight();
+    computeClosest1Bone();
     break;
   case 2:
-    linearBlend = true;
-    computeVertexBoneWeight();
+    computeClosest2Bones();
     break;
   case 3:
-    linearBlend = false;
     break;
   case 4:
-    linearBlend = false;
     break;
   }
 }
@@ -187,20 +179,6 @@ Vector3 getBoneTail(int boneId)
 }
 
 ///////////////////////////////////////////////////////////////////
-// FUNC: computeVertexBoneWeight()
-// DOES: compute weight of bones on each mesh vertex
-///////////////////////////////////////////////////////////////////
-
-void computeVertexBoneWeight() {
-    //int leftHandBoneIndex = animation.GetBoneIndexOf("Bone.001_L.002");
-    if (!linearBlend) {
-        computeClosest1Bone();
-    } else {
-        computeClosest2Bones();
-    }
-}
-
-///////////////////////////////////////////////////////////////////
 // FUNC: computeClosest1Bone()
 // DOES: Assign weights to the closest bone
 ///////////////////////////////////////////////////////////////////
@@ -215,15 +193,12 @@ void computeClosest1Bone() {
         for (int j = 0; j < animation.bones.size(); j++) {
             
             Vector3 boneHead = getBoneHead(j);
-            //boneHead.print("Head coordinate is ");
             Vector3 boneTail = getBoneTail(j);
-            //boneTail.print("Tail coordinate is ");
             
             float dist = closestDistance(boneHead, boneTail, meshV);
             if (dist <= closestDist) {
                 closestDist = dist;
                 closestBoneIndex = j;
-                //cout << "Distance " << dist << endl;
             }
             
         }
@@ -267,13 +242,6 @@ void computeClosest2Bones() {
         // sort the distanceArray from smallest to largest
         quickSort(distArray, boneIndexArray, 0, numBones - 1);
         
-        
-//        for (int n = 0; n < numBones; n++) {
-//
-//            cout << "Bone Index: " << boneIndexArray[n] << endl;
-//            cout << "Distance: " << distArray[n] << endl;
-//        }
-        
         std::vector<float> boneWeights;
         
         int closest1Bone = boneIndexArray[0];
@@ -287,6 +255,12 @@ void computeClosest2Bones() {
         
         float newWeight1 = weight1 / (weight1 + weight2);
         float newWeight2 = weight2 / (weight1 + weight2);
+        
+//        cout << "New Weight 1 for Bone " << closest1Bone << " is " <<
+//        newWeight1 << endl;
+//        
+//        cout << "New Weight 2 for Bone " << closest2Bone << " is " <<
+//        newWeight2 << endl;
         
         for (int k = 0; k < numBones; k++) {
             if (k == closest1Bone) {
@@ -409,17 +383,16 @@ void computeDeformedMesh()
         Vector3 meshV = meshOriginal.vertices.at(i);
         
         std::vector<float> boneWeights = weights.at(i);
-        
+        Vector3 pDeformed;
         for (int j = 0; j < boneWeights.size(); j++) {
             float weight = boneWeights.at(j);
             if (weight != 0) {
                 MeshAnimation::TBone b = animation.bones.at(j);
                 Vector3 meshInBone = convertToBoneCoordinateFromWorldCoordinate(meshV, b);
-
-                Vector3 pDeformed = weight * convertToWorldCoordinateFromBoneCoordinate(meshInBone, b);
-                mesh.vertices.at(i) = pDeformed;
+                pDeformed = pDeformed + (weight * convertToWorldCoordinateFromBoneCoordinate(meshInBone, b));
             }
         }
+        mesh.vertices.at(i) = pDeformed;
     }
 }
 
