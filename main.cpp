@@ -47,9 +47,11 @@ MeshAnimation animation;
 string sceneFile;
 string skeletonFile;
 
-bool linearBlend = false;
+bool linearBlend;
 int closestMeshIndex = -1;
-std::vector<float> weights;
+// weights contain the weights of all the bones per mesh vertex
+std::vector<std::vector<float>> weights;
+int MAX_DISTANCE = 20;
 
 extern void initScene();
 extern void updateScene();
@@ -62,6 +64,10 @@ extern float computeDistance(Vector3 p1, Vector3 p2);
 extern void computeDeformedMesh();
 extern Vector3 convertToWorldCoordinateFromBoneCoordinate(Vector3 boneVector, MeshAnimation::TBone &bone);
 extern Vector3 convertToBoneCoordinateFromWorldCoordinate(Vector3 worldVector, MeshAnimation::TBone &bone);
+extern void computeClosest1Bone();
+extern void computeClosest2Bones();
+extern float pivot(float distArr[], int indexArr[], int first, int last);
+extern void quickSort(float distArr[], int indexArr[], int first, int last);
 
 ///////////////////////////////////////////////////////////////////
 // FUNC:  init()
@@ -94,7 +100,7 @@ void initScene()
 
   loadScene();         // read scene description
 	
-  computeVertexBoneWeight(); // compute weight of bones on each vertex
+  //computeVertexBoneWeight(); // compute weight of bones on each vertex
     
     std::vector<Vector3> vertice;
     for (int i = 0; i < mesh.vertices.size(); i++) {
@@ -106,12 +112,18 @@ void initScene()
   case 0:
     break;
   case 1:
+    linearBlend = false;
+    computeVertexBoneWeight();
     break;
   case 2:
+    linearBlend = true;
+    computeVertexBoneWeight();
     break;
   case 3:
-		break;
+    linearBlend = false;
+    break;
   case 4:
+    linearBlend = false;
     break;
   }
 }
@@ -179,60 +191,154 @@ Vector3 getBoneTail(int boneId)
 // DOES: compute weight of bones on each mesh vertex
 ///////////////////////////////////////////////////////////////////
 
-void computeVertexBoneWeight()
-{
-    //for (int i = 0; i < animation.bones.size(); i++) {
-    //MeshAnimation::TBone b = animation.bones.at(i);
-    
-    int leftHandBoneIndex = animation.GetBoneIndexOf("Bone.001_L.002");
-    
+void computeVertexBoneWeight() {
+    //int leftHandBoneIndex = animation.GetBoneIndexOf("Bone.001_L.002");
+    if (!linearBlend) {
+        computeClosest1Bone();
+    } else {
+        computeClosest2Bones();
+    }
+}
+
+///////////////////////////////////////////////////////////////////
+// FUNC: computeClosest1Bone()
+// DOES: Assign weights to the closest bone
+///////////////////////////////////////////////////////////////////
+void computeClosest1Bone() {
     // For every vertex of a mesh, find the closest bone
+    weights.clear();
     for (int i = 0; i < mesh.vertices.size(); i++) {
         
         Vector3 meshV = mesh.vertices.at(i);
         double closestDist = 10;
         int closestBoneIndex = -1;
         for (int j = 0; j < animation.bones.size(); j++) {
-
+            
             Vector3 boneHead = getBoneHead(j);
-            boneHead.print("Head coordinate is ");
+            //boneHead.print("Head coordinate is ");
             Vector3 boneTail = getBoneTail(j);
-            boneTail.print("Tail coordinate is ");
-
+            //boneTail.print("Tail coordinate is ");
+            
             float dist = closestDistance(boneHead, boneTail, meshV);
             if (dist <= closestDist) {
                 closestDist = dist;
                 closestBoneIndex = j;
-                cout << "Distance " << dist << endl;
+                //cout << "Distance " << dist << endl;
             }
-                
+            
         }
-        if (closestBoneIndex == leftHandBoneIndex) {
-            weights.push_back(1);
-        } else {
-            weights.push_back(0);
+        std::vector<float> boneWeights;
+        
+        for (int k = 0; k < animation.bones.size(); k++) {
+            if (k == closestBoneIndex) {
+                boneWeights.push_back(1);
+            } else {
+                boneWeights.push_back(0);
+            }
+        }
+        weights.push_back(boneWeights);
+    }
+}
+
+///////////////////////////////////////////////////////////////////
+// FUNC: computeClosest2Bones()
+// DOES: Assign weights to the closest 2 bones using linear blending
+///////////////////////////////////////////////////////////////////
+void computeClosest2Bones() {
+    // For every vertex of a mesh, find the closest bone
+    int numBones = animation.bones.size();
+    weights.clear();
+    for (int i = 0; i < mesh.vertices.size(); i++) {
+        
+        Vector3 meshV = mesh.vertices.at(i);
+        int boneIndexArray[numBones];
+        float distArray[numBones];
+        
+        for (int j = 0; j < numBones; j++) {
+            
+            Vector3 boneHead = getBoneHead(j);
+            Vector3 boneTail = getBoneTail(j);
+            
+            float dist = closestDistance(boneHead, boneTail, meshV);
+            boneIndexArray[j] = j;
+            distArray[j] = dist;
         }
         
+        // sort the distanceArray from smallest to largest
+        quickSort(distArray, boneIndexArray, 0, numBones - 1);
+        
+        
+//        for (int n = 0; n < numBones; n++) {
+//
+//            cout << "Bone Index: " << boneIndexArray[n] << endl;
+//            cout << "Distance: " << distArray[n] << endl;
+//        }
+        
+        std::vector<float> boneWeights;
+        
+        int closest1Bone = boneIndexArray[0];
+        int closest2Bone = boneIndexArray[1];
+        
+        float closest1Dist = distArray[0];
+        float closest2Dist = distArray[1];
+        
+        float weight1 = 1 / pow(closest1Dist, 2);
+        float weight2 = 1 / pow(closest2Dist, 2);
+        
+        float newWeight1 = weight1 / (weight1 + weight2);
+        float newWeight2 = weight2 / (weight1 + weight2);
+        
+        for (int k = 0; k < numBones; k++) {
+            if (k == closest1Bone) {
+                boneWeights.push_back(newWeight1);
+            } else if (k == closest2Bone) {
+                boneWeights.push_back(newWeight2);
+            } else {
+                boneWeights.push_back(0);
+            }
+        }
+        weights.push_back(boneWeights);
     }
+}
 
+///////////////////////////////////////////////////////////////////
+// FUNC: quickSort() modified to take in two arrays
+// DOES: sorts the array
+///////////////////////////////////////////////////////////////////
 
-// Here for testing purposes
-//    Vector3 bone1 = Vector3(1, 1, 0);
-//    Vector3 bone2 = Vector3(2, 1, 0);
-//    Vector3 vertex1 = Vector3(1.5, 1, 0);
-//    
-//    Vector3 vertex2 = Vector3(1, 2, 0);
-//    Vector3 vertex3 = Vector3(2, 2, 0);
-//    
-//    Vector3 vertex4 = Vector3(1, -1, 0);
-//    Vector3 vertex5 = Vector3(1, 1, 5);
-//    
-//    
-//    cout << closestDistance(bone1, bone2, vertex1) << endl;
-//    cout << closestDistance(bone1, bone2, vertex2) << endl;
-//    cout << closestDistance(bone1, bone2, vertex3) << endl;
-//    cout << closestDistance(bone1, bone2, vertex4) << endl;
-//    cout << closestDistance(bone1, bone2, vertex5) << endl;
+void quickSort(float distArr[], int indexArr[], int first, int last) {
+    int pivotElement;
+    
+    if(first < last) {
+        pivotElement = pivot(distArr, indexArr, first, last);
+        quickSort(distArr, indexArr, first, pivotElement-1);
+        quickSort(distArr, indexArr, pivotElement+1, last);
+    }
+}
+
+float pivot(float distArr[], int indexArr[], int first, int last) {
+    int  p = first;
+    float pivotElement = distArr[first];
+    
+    for(int i = first+1 ; i <= last ; i++) {
+        if(distArr[i] <= pivotElement) {
+            p++;
+            float tmp1 = distArr[i];
+            float tmp2 = indexArr[i];
+            distArr[i] = distArr[p];
+            indexArr[i] = indexArr[p];
+            distArr[p] = tmp1;
+            indexArr[p] = tmp2;
+        }
+    }
+    float tmp1 = distArr[p];
+    float tmp2 = indexArr[p];
+    distArr[p] = distArr[first];
+    indexArr[p] = indexArr[first];
+    distArr[first] = tmp1;
+    indexArr[first] = tmp2;
+    
+    return p;
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -299,22 +405,22 @@ float computeDistance(Vector3 p1, Vector3 p2) {
 void computeDeformedMesh()
 {
 	// compute and update coords of mesh vertices based on bone positions
-    int index = animation.GetBoneIndexOf("Bone.001_L.002");
-    MeshAnimation::TBone b = animation.bones.at(index);
-    
     for (int i = 0; i < mesh.vertices.size(); i++) {
         Vector3 meshV = meshOriginal.vertices.at(i);
-        Vector3 meshInBone = convertToBoneCoordinateFromWorldCoordinate(meshV, b);
-        meshInBone.print("MeshInBone is ");
-        if (weights[i] == 1) {
-            Vector3 pDeformed = convertToWorldCoordinateFromBoneCoordinate(meshInBone, b);
-            
-            pDeformed.print("New Point is ");
-            
-            mesh.vertices.at(i) = pDeformed;
+        
+        std::vector<float> boneWeights = weights.at(i);
+        
+        for (int j = 0; j < boneWeights.size(); j++) {
+            float weight = boneWeights.at(j);
+            if (weight != 0) {
+                MeshAnimation::TBone b = animation.bones.at(j);
+                Vector3 meshInBone = convertToBoneCoordinateFromWorldCoordinate(meshV, b);
+
+                Vector3 pDeformed = weight * convertToWorldCoordinateFromBoneCoordinate(meshInBone, b);
+                mesh.vertices.at(i) = pDeformed;
+            }
         }
     }
-
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -329,9 +435,12 @@ void updateScene()
     break;
   case 1:   
 		animation.SetPose(animation_id, currentTime);		// set skeleton pose
-		computeDeformedMesh();     							// now compute the deformed mesh
-    break;
-  case 2:        
+        computeDeformedMesh();     							// now compute the deformed mesh
+        break;
+  case 2:
+        animation.SetPose(animation_id, currentTime);		// set skeleton pose
+        computeDeformedMesh();     							// now compute the deformed mesh
+        break;
     break;
   case 3:
   case 4:
