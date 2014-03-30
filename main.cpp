@@ -46,6 +46,10 @@ MeshAnimation animation;
 string sceneFile;
 string skeletonFile;
 
+bool linearBlend = false;
+int closestMeshIndex = -1;
+std::vector<float> weights;
+
 extern void initScene();
 extern void updateScene();
 extern void loadScene();
@@ -56,7 +60,7 @@ extern float closestDistance(Vector3 boneStart, Vector3 boneEnd, Vector3 vertex)
 extern float computeDistance(Vector3 p1, Vector3 p2);
 extern void computeDeformedMesh();
 extern Vector3 convertToWorldCoordinateFromBoneCoordinate(Vector3 boneVector, MeshAnimation::TBone &bone);
-
+extern Vector3 convertToBoneCoordinateFromWorldCoordinate(Vector3 worldVector, MeshAnimation::TBone &bone);
 
 ///////////////////////////////////////////////////////////////////
 // FUNC:  init()
@@ -135,7 +139,7 @@ void loadScene()
 
 ///////////////////////////////////////////////////////////////////
 // FUNC: getBoneHead
-// DOES: compute head position of bone
+// DOES: compute head position of bone in world coordinate
 ///////////////////////////////////////////////////////////////////
 
 Vector3 getBoneHead(int boneId)
@@ -178,25 +182,24 @@ void computeVertexBoneWeight()
     
         cout << b.name << endl;
 
-        Vector3 boneHead = Vector3(0, 0, 0);
-        Vector3 worldVector = convertToWorldCoordinateFromBoneCoordinate(boneHead, b);
+    Vector3 boneHead = getBoneHead(index);
+    boneHead.print("Head coordinate is ");
+    Vector3 boneTail = getBoneTail(index);
+    boneTail.print("Tail coordinate is ");
     
-        cout << "World Coordinate" << endl;
-        cout << worldVector[0] << endl;
-        cout << worldVector[1] << endl;
-        cout << worldVector[2] << endl;
-        cout << endl;
-    
-//    Vector3 boneTail = Vector3(0, 0.98, 0);
-//    
-//    int closestMeshIndex = -1;
-//    double closestDistance = -1;
-//    for (int i=0; i < mesh.vertices.size(); i++) {
-//        Vector3 meshV = mesh.vertices.at(i);
-//        
-//    }
-    
-    
+    if (!linearBlend) {
+        
+        //double closestDist = 20;
+        for (int i=0; i < mesh.vertices.size(); i++) {
+            Vector3 meshV = mesh.vertices.at(i);
+            float dist = closestDistance(boneHead, boneTail, meshV);
+            
+            cout << "Distance " << dist << endl;
+            
+            weights.push_back(dist);
+        }
+        //cout << "Closest distance is " << closestDist << endl;
+    }
 //    }
     
     // Here for testing purposes
@@ -224,28 +227,22 @@ void computeVertexBoneWeight()
 ///////////////////////////////////////////////////////////////////
 
 Vector3 convertToWorldCoordinateFromBoneCoordinate(Vector3 boneVector, MeshAnimation::TBone &bone) {
-    matrix44 mat = bone.matrix;
+    vec3f boneVec = vec3f(boneVector[0], boneVector[1], boneVector[2]);
+    vec3f result = bone.matrix * boneVec;
     
-    float x1 = mat.x_component()[0];
-    float x2 = mat.x_component()[1];
-    float x3 = mat.x_component()[2];
-    float y1 = mat.y_component()[0];
-    float y2 = mat.y_component()[1];
-    float y3 = mat.y_component()[2];
-    float z1 = mat.z_component()[0];
-    float z2 = mat.z_component()[1];
-    float z3 = mat.z_component()[2];
-    float pos1 = mat.pos_component()[0];
-    float pos2 = mat.pos_component()[1];
-    float pos3 = mat.pos_component()[2];
+    return Vector3(result[0],result[1],result[2]);
+}
+
+///////////////////////////////////////////////////////////////////
+// FUNC: convertBoneCoordinateFromWorldCoordinate()
+// DOES: Given a vector in world space, compute the coordinate to bone space
+///////////////////////////////////////////////////////////////////
+
+Vector3 convertToBoneCoordinateFromWorldCoordinate(Vector3 worldVector, MeshAnimation::TBone &bone) {
+    vec3f worldVec = vec3f(worldVector[0], worldVector[1], worldVector[2]);
+    vec3f result = bone.invbindmatrix * worldVec;
     
-    Vector3 xVector = Vector3(x1, x2, x3);
-    Vector3 yVector = Vector3(y1, y2, y3);
-    Vector3 zVector = Vector3(z1, z2, z3);
-    Vector3 posVector = Vector3(pos1, pos2, pos3);
-    Affine3 boneMatrix = Affine3(xVector, yVector, zVector, posVector);
-    
-    return boneMatrix.operator*(boneVector);
+    return Vector3(result[0],result[1],result[2]);
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -291,7 +288,21 @@ void computeDeformedMesh()
 	int meshSize = mesh.vertices.size();
     
 	// compute and update coords of mesh vertices based on bone positions
-	
+    int index = animation.GetBoneIndexOf("Bone.001_L.002");
+    MeshAnimation::TBone b = animation.bones.at(index);
+    
+    for (int i = 0; i < mesh.vertices.size(); i++) {
+        Vector3 meshV = mesh.vertices.at(i);
+        Vector3 meshInBone = convertToBoneCoordinateFromWorldCoordinate(meshV, b);
+        meshInBone.print("MeshInBone is ");
+        float normalizedWeight = 1 / sqrt(pow(weights[i], 2));
+        Vector3 pDeformed = normalizedWeight * convertToWorldCoordinateFromBoneCoordinate(meshInBone, b);
+        
+        pDeformed.print("New Point is ");
+        
+        mesh.vertices.at(i) = pDeformed;
+    }
+
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -306,7 +317,7 @@ void updateScene()
     break;
   case 1:   
 		animation.SetPose(animation_id, currentTime);		// set skeleton pose
-		computeDeformedMesh();     											// now compute the deformed mesh
+		computeDeformedMesh();     							// now compute the deformed mesh
     break;
   case 2:        
     break;
