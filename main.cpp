@@ -11,6 +11,8 @@
 #include <sstream>
 #include <cstdlib>
 
+#define Bone MeshAnimation::TBone
+
 // Camera parameters
 int windowWidth = 1024;         // window width (pixels)
 int windowHeight = 768;         // window height (pixels)
@@ -47,6 +49,8 @@ string skeletonFile;
 extern void initScene();
 extern void updateScene();
 extern void loadScene();
+Vector3 getBoneHead(int boneId);
+Vector3 getBoneTail(int boneId);
 extern void computeVertexBoneWeight();
 extern float closestDistance(Vector3 boneStart, Vector3 boneEnd, Vector3 vertex);
 extern float computeDistance(Vector3 p1, Vector3 p2);
@@ -126,6 +130,36 @@ void loadScene()
     //    }
     // animation.LoadSkeletonXML(skeletonFile.c_str());
 	
+}
+
+///////////////////////////////////////////////////////////////////
+// FUNC: getBoneHead
+// DOES: compute head position of bone
+///////////////////////////////////////////////////////////////////
+
+Vector3 getBoneHead(int boneId)
+{
+	vec3f head = animation.bones[boneId].matrix*vec3f(0,0,0);
+	return Vector3(head[0],head[1],head[2]);
+}
+
+///////////////////////////////////////////////////////////////////
+// FUNC: getBoneTail
+// DOES: compute tail position of bone.
+// 			 If bone has child, use child's head as the tail,
+//			 otherwise use "pos" to fake it.
+///////////////////////////////////////////////////////////////////
+
+Vector3 getBoneTail(int boneId)
+{
+	Bone bone = animation.bones[boneId];
+	if(bone.childs.size() > 0){
+		return getBoneHead(bone.childs[0]);
+	}
+	else{
+		vec3f tail = animation.bones[boneId].matrix*vec3f(bone.pos[0], bone.pos[1], bone.pos[2]);
+		return Vector3(tail[0],tail[1],tail[2]);
+	}
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -269,7 +303,17 @@ void drawScene()
   mesh.draw(meshDrawStyle);
 	
 	// Draw skeleton
-	animation.DrawSkeleton();
+	//animation.DrawSkeleton();
+	glColor3f(1.0, 0.0, 0.0);
+	for (int i = 0; i < animation.bones.size(); i++){
+		Vector3 head = getBoneHead(i);
+		Vector3 tail = getBoneTail(i);
+		
+		glBegin(GL_LINES);
+		glVertex3f(head[0], head[1], head[2]);
+		glVertex3f(tail[0], tail[1], tail[2]);
+		glEnd();
+	}
 	
 }
 
