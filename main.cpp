@@ -51,6 +51,7 @@ extern void computeVertexBoneWeight();
 extern float closestDistance(Vector3 boneStart, Vector3 boneEnd, Vector3 vertex);
 extern float computeDistance(Vector3 p1, Vector3 p2);
 extern void computeDeformedMesh();
+extern Vector3 convertToWorldCoordinateFromBoneCoordinate(Vector3 boneVector, MeshAnimation::TBone &bone);
 
 
 ///////////////////////////////////////////////////////////////////
@@ -141,20 +142,27 @@ void computeVertexBoneWeight()
     MeshAnimation::TBone b = animation.bones.at(index);
     
     
-        float boney = b.pos[0];
-        float bonex = b.pos[1];
-        float bonez = b.pos[2];
         cout << b.name << endl;
-        
-        cout << bonex << endl;
-        cout << boney << endl;
-        cout << bonex << endl;
-        cout << endl;
-        matrix44 mat = b.matrix;
 
-        Vector3 boneVector = Vector3(bonex, boney, bonez);
-        
-        
+        Vector3 boneHead = Vector3(0, 0, 0);
+        Vector3 worldVector = convertToWorldCoordinateFromBoneCoordinate(boneHead, b);
+    
+        cout << "World Coordinate" << endl;
+        cout << worldVector[0] << endl;
+        cout << worldVector[1] << endl;
+        cout << worldVector[2] << endl;
+        cout << endl;
+    
+//    Vector3 boneTail = Vector3(0, 0.98, 0);
+//    
+//    int closestMeshIndex = -1;
+//    double closestDistance = -1;
+//    for (int i=0; i < mesh.vertices.size(); i++) {
+//        Vector3 meshV = mesh.vertices.at(i);
+//        
+//    }
+    
+    
 //    }
     
     // Here for testing purposes
@@ -174,6 +182,36 @@ void computeVertexBoneWeight()
 //    cout << closestDistance(bone1, bone2, vertex3) << endl;
 //    cout << closestDistance(bone1, bone2, vertex4) << endl;
 //    cout << closestDistance(bone1, bone2, vertex5) << endl;
+}
+
+///////////////////////////////////////////////////////////////////
+// FUNC: convertWorldCoordinateFromBoneCoordinate()
+// DOES: Given a boneVector in bone space, compute the coordinate in world space
+///////////////////////////////////////////////////////////////////
+
+Vector3 convertToWorldCoordinateFromBoneCoordinate(Vector3 boneVector, MeshAnimation::TBone &bone) {
+    matrix44 mat = bone.matrix;
+    
+    float x1 = mat.x_component()[0];
+    float x2 = mat.x_component()[1];
+    float x3 = mat.x_component()[2];
+    float y1 = mat.y_component()[0];
+    float y2 = mat.y_component()[1];
+    float y3 = mat.y_component()[2];
+    float z1 = mat.z_component()[0];
+    float z2 = mat.z_component()[1];
+    float z3 = mat.z_component()[2];
+    float pos1 = mat.pos_component()[0];
+    float pos2 = mat.pos_component()[1];
+    float pos3 = mat.pos_component()[2];
+    
+    Vector3 xVector = Vector3(x1, x2, x3);
+    Vector3 yVector = Vector3(y1, y2, y3);
+    Vector3 zVector = Vector3(z1, z2, z3);
+    Vector3 posVector = Vector3(pos1, pos2, pos3);
+    Affine3 boneMatrix = Affine3(xVector, yVector, zVector, posVector);
+    
+    return boneMatrix.operator*(boneVector);
 }
 
 ///////////////////////////////////////////////////////////////////
