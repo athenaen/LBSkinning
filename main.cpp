@@ -42,6 +42,7 @@ int animation_id = 0;	// first animation clip
 
 // My mesh and skeleton
 TriangleMesh mesh;
+TriangleMesh meshOriginal;
 MeshAnimation animation;
 string sceneFile;
 string skeletonFile;
@@ -94,6 +95,12 @@ void initScene()
   loadScene();         // read scene description
 	
   computeVertexBoneWeight(); // compute weight of bones on each vertex
+    
+    std::vector<Vector3> vertice;
+    for (int i = 0; i < mesh.vertices.size(); i++) {
+        vertice.push_back(mesh.vertices[i]);
+    }
+    meshOriginal.vertices = vertice;
 
   switch(mode) {   // mode-specific initialization
   case 0:
@@ -176,33 +183,40 @@ void computeVertexBoneWeight()
 {
     //for (int i = 0; i < animation.bones.size(); i++) {
     //MeshAnimation::TBone b = animation.bones.at(i);
-    int index = animation.GetBoneIndexOf("Bone.001_L.002");
-    MeshAnimation::TBone b = animation.bones.at(index);
     
+    int leftHandBoneIndex = animation.GetBoneIndexOf("Bone.001_L.002");
     
-        cout << b.name << endl;
-
-    Vector3 boneHead = getBoneHead(index);
-    boneHead.print("Head coordinate is ");
-    Vector3 boneTail = getBoneTail(index);
-    boneTail.print("Tail coordinate is ");
-    
-    if (!linearBlend) {
+    // For every vertex of a mesh, find the closest bone
+    for (int i = 0; i < mesh.vertices.size(); i++) {
         
-        //double closestDist = 20;
-        for (int i=0; i < mesh.vertices.size(); i++) {
-            Vector3 meshV = mesh.vertices.at(i);
+        Vector3 meshV = mesh.vertices.at(i);
+        double closestDist = 10;
+        int closestBoneIndex = -1;
+        for (int j = 0; j < animation.bones.size(); j++) {
+
+            Vector3 boneHead = getBoneHead(j);
+            boneHead.print("Head coordinate is ");
+            Vector3 boneTail = getBoneTail(j);
+            boneTail.print("Tail coordinate is ");
+
             float dist = closestDistance(boneHead, boneTail, meshV);
-            
-            cout << "Distance " << dist << endl;
-            
-            weights.push_back(dist);
+            if (dist <= closestDist) {
+                closestDist = dist;
+                closestBoneIndex = j;
+                cout << "Distance " << dist << endl;
+            }
+                
         }
-        //cout << "Closest distance is " << closestDist << endl;
+        if (closestBoneIndex == leftHandBoneIndex) {
+            weights.push_back(1);
+        } else {
+            weights.push_back(0);
+        }
+        
     }
-//    }
-    
-    // Here for testing purposes
+
+
+// Here for testing purposes
 //    Vector3 bone1 = Vector3(1, 1, 0);
 //    Vector3 bone2 = Vector3(2, 1, 0);
 //    Vector3 vertex1 = Vector3(1.5, 1, 0);
@@ -283,24 +297,22 @@ float computeDistance(Vector3 p1, Vector3 p2) {
 ///////////////////////////////////////////////////////////////////
 
 void computeDeformedMesh()
-{ 
-  // mesh size
-	int meshSize = mesh.vertices.size();
-    
+{
 	// compute and update coords of mesh vertices based on bone positions
     int index = animation.GetBoneIndexOf("Bone.001_L.002");
     MeshAnimation::TBone b = animation.bones.at(index);
     
     for (int i = 0; i < mesh.vertices.size(); i++) {
-        Vector3 meshV = mesh.vertices.at(i);
+        Vector3 meshV = meshOriginal.vertices.at(i);
         Vector3 meshInBone = convertToBoneCoordinateFromWorldCoordinate(meshV, b);
         meshInBone.print("MeshInBone is ");
-        float normalizedWeight = 1 / sqrt(pow(weights[i], 2));
-        Vector3 pDeformed = normalizedWeight * convertToWorldCoordinateFromBoneCoordinate(meshInBone, b);
-        
-        pDeformed.print("New Point is ");
-        
-        mesh.vertices.at(i) = pDeformed;
+        if (weights[i] == 1) {
+            Vector3 pDeformed = convertToWorldCoordinateFromBoneCoordinate(meshInBone, b);
+            
+            pDeformed.print("New Point is ");
+            
+            mesh.vertices.at(i) = pDeformed;
+        }
     }
 
 }
