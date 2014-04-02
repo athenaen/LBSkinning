@@ -10,6 +10,7 @@
 #include <iostream>
 #include <sstream>
 #include <cstdlib>
+#include "GLCamera.h"
 
 #define Bone MeshAnimation::TBone
 
@@ -51,6 +52,13 @@ int currentSkeletonId = 0;
 
 // weights contain the weights of all the bones per mesh vertex
 std::vector<std::vector<float> > weights;
+
+// Camera related:
+int mouseButtonPressed;
+int oldMouseX = 0;
+int oldMouseY = 0;
+GLCamera camera;
+
 
 extern void initScene();
 extern void updateScene();
@@ -96,6 +104,8 @@ void init(void)
 
 void initScene()
 {
+    camera.target = Point3d(0,2,0);      // camera setup
+	camera.camDistance = -10;
   currentTime = 0;     // reset time
 
   loadScene();         // read scene description
@@ -490,6 +500,8 @@ void displayCallback(void)
 		cameraCenter[1] + cameraR * std::cos(cameraTheta),
 		cameraCenter[2] + cameraR * std::sin(cameraTheta) * std::cos(cameraPhi)  	};
   gluLookAt(eye[0],eye[1],eye[2],cameraCenter[0],cameraCenter[1],cameraCenter[2],cameraUp[0],cameraUp[1], cameraUp[2]);
+  camera.applyCameraTransformations();
+    
   drawScene();        // draw scene
   glutSwapBuffers();  // swap buffers
 }
@@ -607,6 +619,44 @@ void idleCallback()
   glutPostRedisplay();   // draw scene
 }
 
+//////////////////////////////////////////////////////////////////////////////
+// mouse button press callback
+//////////////////////////////////////////////////////////////////////////////
+
+void processMouse(int button, int state, int x, int y){
+	mouseButtonPressed = button;
+	oldMouseX = x;
+	oldMouseY = y;
+}
+
+//////////////////////////////////////////////////////////////////////////////
+// mouse motion callback
+//////////////////////////////////////////////////////////////////////////////
+
+void processMouseActiveMotion(int x, int y){
+	Vector3d v;
+	switch (mouseButtonPressed){
+		case GLUT_RIGHT_BUTTON:
+            v.x = (oldMouseX - x)/200.0;
+            v.y = -(oldMouseY - y)/200.0;
+            v.z = 0;
+            camera.target.x += v.x;
+            camera.target.y += v.y;
+            camera.target.z += v.z;
+            break;
+		case GLUT_LEFT_BUTTON:
+            camera.rotations -= Vector3d((-oldMouseY+y)/100.0, (-oldMouseX+x)/100.0, 0);
+            break;
+		case GLUT_MIDDLE_BUTTON:
+            camera.camDistance *= 1-((oldMouseY - y)/200.0);
+            if (camera.camDistance > -0.1)
+                camera.camDistance = -0.1;
+            break;
+	}
+	oldMouseX = x;
+	oldMouseY = y;
+}
+
 ///////////////////////////////////////////////////////////////////
 // FUNC:  main()
 // DOES:  intializes glut window, calls init(), then hands over control to glut
@@ -618,6 +668,7 @@ int main(int argc, char **argv)
         skeletonOldFile = argv[1];
         skeletonNewFile = argv[2];
     }
+
    glutInit(&argc, argv);
    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
    glutInitWindowSize(windowWidth, windowHeight);
@@ -625,9 +676,12 @@ int main(int argc, char **argv)
    glutReshapeFunc(myReshape);
    glutDisplayFunc(displayCallback);
    glutKeyboardFunc(keyCallback);
+    glutMouseFunc(processMouse);
+    glutMotionFunc(processMouseActiveMotion);
    glutSpecialFunc(specialKeyCallback);
    glutIdleFunc(idleCallback);
    init();
+
    glutMainLoop();
    return 0;
 }
