@@ -19,9 +19,9 @@ int windowHeight = 768;         // window height (pixels)
 float cameraFovy = 35.0;        // field of view  in the y-direction (degrees)
 float cameraZnear = 1.0;        // near clipping plane (distance from camera)
 float cameraZfar = 100.0;       // far clipping plane (distance from camera)
-float cameraR = 30;             // camera position: distance to center (OpenGL units)
-float cameraTheta = 0.25*3.14;  // camera position: angle theta (radians)
-float cameraPhi = 0.25*3.14;    // camera position: angle phi(radians)
+float cameraR = 20.83; //30;      // camera position: distance to center (OpenGL units)
+float cameraTheta = 0.98; //0.25*3.14;  // camera position: angle theta (radians)
+float cameraPhi = 6.36; //0.25*3.14;    // camera position: angle phi(radians)
 float cameraCenter[] = {0,0,0}; // where the camera is looking at (OpenGL units)
 float cameraUp[] = {0,1,0};     // up vector of the camera (OpenGL units)
 
@@ -46,9 +46,11 @@ TriangleMesh meshOriginal;
 MeshAnimation animation;
 string sceneFile;
 string skeletonFile;
+int currentSkeletonId = 0;
+string skeletonFiles[] = {"skeletons/old_org_mapped.skeleton.xml", "skeletons/org_mapped.skeleton.xml"};
 
 // weights contain the weights of all the bones per mesh vertex
-std::vector<std::vector<float>> weights;
+std::vector<std::vector<float> > weights;
 
 extern void initScene();
 extern void updateScene();
@@ -65,6 +67,7 @@ extern void computeClosest1Bone();
 extern void computeClosest2Bones();
 extern float pivot(float distArr[], int indexArr[], int first, int last);
 extern void quickSort(float distArr[], int indexArr[], int first, int last);
+void changeSkeleton();
 
 ///////////////////////////////////////////////////////////////////
 // FUNC:  init()
@@ -137,7 +140,8 @@ void loadScene()
     mesh.readFromOBJ("meshes/simplebear.obj");
 	
 	// read in mesh skeleton
-	animation.LoadSkeletonXML("skeletons/org_mapped.skeleton.xml");
+	//animation.LoadSkeletonXML("skeletons/org_mapped.skeleton.xml");
+	animation.LoadSkeletonXML(skeletonFiles[currentSkeletonId].c_str());
     
     //    ifstream myanimationfile(skeletonFile.c_str());
     //    if (!myanimationfile.is_open()) {
@@ -146,6 +150,17 @@ void loadScene()
     //    }
     // animation.LoadSkeletonXML(skeletonFile.c_str());
 	
+}
+
+///////////////////////////////////////////////////////////////////
+// FUNC: changeSkeleton
+// DOES: cycle through the skeleton files and change skeleton
+///////////////////////////////////////////////////////////////////
+void changeSkeleton(){
+	int numSkeletons = sizeof(skeletonFiles)/sizeof(string);
+	currentSkeletonId = (currentSkeletonId +1) % (numSkeletons);
+	cout << "current skeleton: " << currentSkeletonId << "\n";
+	initScene();
 }
 
 ///////////////////////////////////////////////////////////////////
@@ -448,15 +463,16 @@ void drawScene()
 	// Draw skeleton
 	//animation.DrawSkeleton();
 	glColor3f(1.0, 0.0, 0.0);
+	glLineWidth(3);
 	for (int i = 0; i < animation.bones.size(); i++){
 		Vector3 head = getBoneHead(i);
 		Vector3 tail = getBoneTail(i);
-		
 		glBegin(GL_LINES);
 		glVertex3f(head[0], head[1], head[2]);
 		glVertex3f(tail[0], tail[1], tail[2]);
 		glEnd();
 	}
+	glLineWidth(1);
 	
 }
 
@@ -510,6 +526,9 @@ void keyCallback(unsigned char key, int x, int y)
   case 'p':
     mesh.print();
     break;
+	case 's':
+		changeSkeleton();
+		break;
   default:
     break;
   }
