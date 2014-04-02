@@ -44,10 +44,10 @@ int animation_id = 0;	// first animation clip
 TriangleMesh mesh;
 TriangleMesh meshOriginal;
 MeshAnimation animation;
-string sceneFile;
-string skeletonFile;
+string skeletonOldFile;
+string skeletonNewFile;
 int currentSkeletonId = 0;
-string skeletonFiles[] = {"skeletons/old_org_mapped.skeleton.xml", "skeletons/org_mapped.skeleton.xml"};
+//string skeletonFiles[] = {"skeletons/old_org_mapped.skeleton.xml", "skeletons/org_mapped.skeleton.xml"};
 
 // weights contain the weights of all the bones per mesh vertex
 std::vector<std::vector<float> > weights;
@@ -130,25 +130,25 @@ void initScene()
 
 void loadScene()
 {
-// TODO: remove to automate this
-//    ifstream myfile(sceneFile.c_str());
-//    if (!myfile.is_open()) {
-//        cerr << "Unable open scene: " << sceneFile << endl;
-//        return;
-//    }
-//    mesh.readFromOBJ(sceneFile.c_str());
     mesh.readFromOBJ("meshes/simplebear.obj");
 	
-	// read in mesh skeleton
-	//animation.LoadSkeletonXML("skeletons/org_mapped.skeleton.xml");
-	animation.LoadSkeletonXML(skeletonFiles[currentSkeletonId].c_str());
-    
-    //    ifstream myanimationfile(skeletonFile.c_str());
-    //    if (!myanimationfile.is_open()) {
-    //        cerr << "Unable open skeleton: " << skeletonFile << endl;
-    //        return;
-    //    }
-    // animation.LoadSkeletonXML(skeletonFile.c_str());
+	// read in mesh skeleton - arg 1 is old skeleton, arg 2 is new skeleton
+    if (currentSkeletonId == 0) {
+        ifstream myanimationfile(skeletonOldFile.c_str());
+        if (!myanimationfile.is_open()) {
+            cerr << "Unable open skeleton: " << skeletonOldFile << endl;
+            return;
+        }
+        animation.LoadSkeletonXML(skeletonOldFile.c_str());
+   
+    } else if (currentSkeletonId == 1) {
+        ifstream myanimationfile(skeletonNewFile.c_str());
+        if (!myanimationfile.is_open()) {
+            cerr << "Unable open skeleton: " << skeletonNewFile << endl;
+            return;
+        }
+        animation.LoadSkeletonXML(skeletonNewFile.c_str());
+    }
 	
 }
 
@@ -157,8 +157,7 @@ void loadScene()
 // DOES: cycle through the skeleton files and change skeleton
 ///////////////////////////////////////////////////////////////////
 void changeSkeleton(){
-	int numSkeletons = sizeof(skeletonFiles)/sizeof(string);
-	currentSkeletonId = (currentSkeletonId +1) % (numSkeletons);
+	currentSkeletonId = (currentSkeletonId +1) % 2;
 	cout << "current skeleton: " << currentSkeletonId << "\n";
 	initScene();
 }
@@ -616,8 +615,8 @@ void idleCallback()
 int main(int argc, char **argv)
 {
     if (argc==3) {
-        sceneFile = argv[1];
-        skeletonFile = argv[2];
+        skeletonOldFile = argv[1];
+        skeletonNewFile = argv[2];
     }
    glutInit(&argc, argv);
    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH);
